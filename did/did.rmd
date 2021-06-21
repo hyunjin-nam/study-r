@@ -1,0 +1,70 @@
+---
+title: "did"
+output: html_document
+---
+
+
+```{r}
+library(utils)
+library(dplyr)
+data <- read.csv('did.csv')
+data <- data %>%
+  mutate( is_ios = as.numeric(is_ios),
+          after_update = as.numeric(after_update)
+          )
+```
+
+Let us denote four averages of the response, as follows:
+
+- $y_{T,A}$: Treatment, After
+- $y_{T,B}$: Treatment, Before
+- $y_{C,B}$: Control, Before
+- $y_{C,A}$: Control, After
+
+
+The difference-in-differences estimator $\hat\delta$ is defined as below
+
+- $\hat\delta = (y_{T,A}− y_{C,A})−(y_{T,B}−y_{C,B})$ 
+- $Y = \beta_1+\beta_2 T+\beta_3 A+δT×A+\epsilon$ 
+ 
+```{r}
+summary(data)
+```
+ 
+
+```{r}
+did_model <- lm( app_download~is_ios*after_update, data=data)
+summary(did_model)
+```
+- $Y = 164380 -114391 T+ 41311 A + -41561T×A+\epsilon$ 
+
+The coefficient on the term  is_ios:after_update  in the Table titled “Difference-in-Differences example” is   $\delta$ , our difference-in-differences estimator. If we want to test the null hypothesis  H0:δ≥0, however we cannot reject the null hypothesis as p-value is 0.48545. In other words, there is no evidence that iso updates decrease revenue.
+
+
+
+```{r}
+b1 <- coef(did_model)[[1]]
+b2 <- coef(did_model)[["is_ios"]]
+b3 <- coef(did_model)[["after_update"]]
+delta <- coef(did_model)[["is_ios:after_update"]]
+C <- b1+b2+b3+delta 
+E <- b1+b3 
+B <- b1+b2 
+A <- b1 
+D <- E+(B-A) 
+# This creates an empty plot:
+plot(1, type="n", xlab="period", ylab="fte", xaxt="n",
+     xlim=c(-0.01, 1.01), ylim=c(40000, 280000))
+segments(x0=0, y0=A, x1=1, y1=E, lty=1, col=2)#control
+segments(x0=0, y0=B, x1=1, y1=C, lty=3, col=3)#treated
+segments(x0=0, y0=B, x1=1, y1=D,      #counterfactual
+         lty=4, col=4)
+legend("topright", legend=c("control", "treated", 
+                            "counterfactual"), lty=c(1,3,4), col=c(2,3,4))
+axis(side=1, at=c(0,1), labels=NULL)
+```
+
+The figure displays the change of  app_download  from the period before ( after_update=0 ) to the period after ios update ( after_update=1 ) for both the treatment and the control groups. The line labeled “counterfactual” shows how the treatment group would have changed in the absence of the treatment, assuming its change would mirror the change in the control group.
+
+
+ref: https://bookdown.org/ccolonescu/RPoE4/indvars.html#the-difference-in-differences-estimator
